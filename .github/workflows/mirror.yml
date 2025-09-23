@@ -1,10 +1,8 @@
 name: Update mirror
 on:
   workflow_dispatch:
-  pull_request:
-    types: [opened, reopened, labeled, unlabeled, synchronize]
   schedule:
-    - cron: '42 3 * * *' # Daily on 03:42 UTC
+    - cron: '11 11 * * *' # Daily on 11:11 UTC
 
 permissions:
   contents: read
@@ -21,3 +19,30 @@ jobs:
 
     - name: Checkout the source
       uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+      with:
+        ref: mirror
+
+    - name: Pull commits
+      run: |
+        git remote add source https://skia.googlesource.com/skcms
+        git fetch source
+        git branch --set-upstream-to=source/main mirror
+        NEW_COMMITS=false
+        HERE=$(git rev-parse @)
+        THERE=$(git rev-parse source)
+        if [ $HERE = $THERE ]; then
+          echo "::notice title::Everything is up-to-date"
+        else
+          echo "::notice title::Pulling new commits"
+          git pull
+          NEW_COMMITS=true
+        fi
+        echo "NEW_COMMITS=${NEW_COMMITS}" >> $GITHUB_ENV
+
+    - name: Push changes
+      env:
+        # NB: token expires on 24 September every year.
+        TOKEN: ${{ secrets.PUSH_SKCMS_MIRROR_TOKEN }}
+      if: env.NEW_COMMITS == 'true'
+      run: |
+        git push https://oauth2:${TOKEN%$'\n'}@github.com/google/skcms.git mirror --force
