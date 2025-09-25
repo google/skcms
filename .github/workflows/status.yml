@@ -75,4 +75,4 @@ jobs:
       env:
         GH_TOKEN: ${{ secrets.UPLOAD_BADGE_TOKEN }}
       run: |
-        gh gist edit <gist-id> -f skcms_status.svg commits.svg
+        gh gist edit 90b4ce8fce9d6ed3d8677adb38578678 -f skcms_status.svg commits.svg
