@@ -1,0 +1,78 @@
+name: Update mirror status
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '01 23 * * *' # Daily on 01:23 UTC
+
+permissions:
+  contents: read
+
+jobs:
+  update_mirror_status:
+    name: Update mirror status
+    runs-on: [ubuntu-latest]
+    steps:
+    - name: Harden Runner
+      uses: step-security/harden-runner@f4a75cfd619ee5ce8d5b864b0d183aff3c69b55a # v2.13.1
+      with:
+        egress-policy: audit
+
+    - name: Checkout the source
+      uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+      with:
+        ref: mirror
+
+    - name: Pull commits
+      run: |
+        git remote add source https://skia.googlesource.com/skcms
+        git fetch source
+        git branch --set-upstream-to=source/main mirror
+        HERE=$(git rev-parse @)
+        git log ${HERE}..source/main --pretty=format:"%cs %h %s" > commits.txt
+
+    - name: Transform
+      shell: python
+      run: |
+        from xml.sax.saxutils import escape
+
+        with open("commits.txt") as file:
+        lines = [line.rstrip() for line in file]
+
+        rows = []
+        n = len(lines)
+        if n:
+          colors = ["ffe", "fed", "edc"]
+          title = "New skcms commits"
+          for i in range(n):
+            text = lines[i]
+            if len(text) > 100:
+              text = text[0:99] + "…"
+            text = escape(text)
+          rows.append(f"""<rect y="{20 + 20 * i}px" width="100%" height="20px" fill="url(#g)"/>
+        <text y="{30 + 20 * i}px" x="4px">{text}</text>""")
+        else:
+          colors = ["ffe", "efd", "dec"]
+          title = "No new skcms commits"
+
+        out = f"""<svg xmlns="http://www.w3.org/2000/svg" width="672" height="{20 + n * 20}">
+          <linearGradient id="g" x2="0" y2="100%">
+            <stop offset="0" stop-color="#{colors[0]}"/>
+            <stop offset="0.1" stop-color="#{colors[1]}"/>
+            <stop offset="0.9" stop-color="#{colors[1]}"/>
+            <stop offset="1" stop-color="#{colors[2]}"/>
+          </linearGradient>
+          <g font-family="monospace" font-size="11" fill="#000" dominant-baseline="central" text-anchor="begin">
+            <rect y="0px" width="100%" height="20px" fill="url(#g)" />
+            <text y="10px" x="50%" font-weight="bold" text-anchor="middle">{title}</text>
+            {"\n".join(rows)}
+          </g>
+        </svg>"""
+
+        with open("commits.svg", "w", encoding="utf-8") as file:
+          file.write(out)
+
+    - name: Upload
+      env:
+        GH_TOKEN: ${{ secrets.UPLOAD_BADGE_TOKEN }}
+      run: |
+        gh gist edit <gist-id> -f skcms_status.svg commits.svg
