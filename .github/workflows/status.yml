@@ -36,7 +36,7 @@ jobs:
         from xml.sax.saxutils import escape
 
         with open("commits.txt") as file:
-        lines = [line.rstrip() for line in file]
+          lines = [line.rstrip() for line in file]
 
         rows = []
         n = len(lines)
@@ -48,8 +48,8 @@ jobs:
             if len(text) > 100:
               text = text[0:99] + "…"
             text = escape(text)
-          rows.append(f"""<rect y="{20 + 20 * i}px" width="100%" height="20px" fill="url(#g)"/>
-        <text y="{30 + 20 * i}px" x="4px">{text}</text>""")
+            rows.append(f"""    <rect y="{20 + 20 * i}px" width="100%" height="20px" fill="url(#g)"/>
+            <text y="{30 + 20 * i}px" x="4px">{text}</text>""")
         else:
           colors = ["ffe", "efd", "dec"]
           title = "No new skcms commits"
